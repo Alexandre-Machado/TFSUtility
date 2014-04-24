@@ -1,14 +1,24 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+using TFSUtility.Factories;
 
 namespace TFSUtility
 {
     class Program
     {
-        static void Main(string[] args)
+        static void Main(String[] args)
         {
+            var parameters = ParameterFactory.GetParameters(args);
+
+            switch (parameters.Command)
+            {
+                case Parameters.MAP_WORK:
+                    var command = CommandFactory.GetMapWork(parameters);
+                    command.Execute(Console.Out);
+
+                    break;
+            }
+
+            Console.ReadKey();
         }
     }
 }
