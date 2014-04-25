@@ -1,4 +1,7 @@
-﻿using System;
+﻿//Exemplo de chamada
+//TFSUtiliy command:map collectionUrl:http://tfs2.cwi.com.br/tfs/Collection1 project:ADSFSW "iterationpath:ADSFSW\Release 1\Sprint 9" user:CWINET\ajdias password:bla
+
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
@@ -6,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using Microsoft.TeamFoundation.Client;
+using Microsoft.TeamFoundation.Framework.Common;
 using Microsoft.TeamFoundation.WorkItemTracking.Client;
 
 namespace TFSUtility.Commands
@@ -14,6 +18,7 @@ namespace TFSUtility.Commands
     {
         private readonly Parameters parameters;
         private TextWriter outputConsole;
+        private TextWriter outputFile;
         private TfsTeamProjectCollection collection;
         private WorkItemCollection wic;
         private readonly List<User> users = new List<User>();
@@ -22,23 +27,33 @@ namespace TFSUtility.Commands
         public MapWork(Parameters parameters)
         {
             this.parameters = parameters;
-
-            //Exemplo de chamada
-            //TFSUtiliy command:map url:http://tfs2.cwi.com.br/tfs/Collection1 project:ADSFSW "iterationpath:ADSFSW\Release 1\Sprint 9" user:CWINET\ajdias password:bla
-
-            //Falta validar os parametros necessários
-            //Url
-            //Project
-            //IterationPath
-
-            //parametros opcionais
-            //user (domain\user)
-            //password
         }
 
         public void Execute(TextWriter console)
         {
             outputConsole = console;
+
+            if (parameters.Help)
+            {
+                PrintHelp();
+
+                return;
+            }
+
+            if (String.IsNullOrEmpty(parameters.CollectionUrl) || String.IsNullOrEmpty(parameters.Project) || String.IsNullOrEmpty(parameters.IterationPath))
+            {
+                outputConsole.WriteLine("**** Missing parameters ****");
+                outputConsole.WriteLine();
+
+                PrintHelp();
+
+                return;
+            }
+
+            if (!String.IsNullOrEmpty(parameters.ResultToFile))
+            {
+                outputFile = new StreamWriter(parameters.ResultToFile);
+            }
 
             PrintStartCommand();
 
@@ -48,30 +63,29 @@ namespace TFSUtility.Commands
 
             PrintHeaders();
             PrintUsers();
+
+            if (outputFile != null)
+            {
+                outputConsole.WriteLine();
+                outputConsole.WriteLine("Result posted on file: " + parameters.ResultToFile);
+
+                outputFile.Close();
+            }
         }
 
         private void DefineCollection()
         {
-            var uri = new Uri(parameters.Url);
+            var uri = new Uri(parameters.CollectionUrl);
 
             ICredentialsProvider credentials = null;
             if (!String.IsNullOrEmpty(parameters.User) && !String.IsNullOrEmpty(parameters.Password))
             {
-                if (!String.IsNullOrEmpty(parameters.Domain))
-                {
-                    credentials =
-                        new NetworkCredential(parameters.User, parameters.Password, parameters.Domain) as
-                        ICredentialsProvider;
-                }
-                else
-                {
-                    credentials = new NetworkCredential(parameters.User, parameters.Password) as ICredentialsProvider;
-                }
+                credentials = new Credentials(parameters.User, parameters.Password, parameters.Domain);
             }
 
             collection = credentials != null
-                       ? TfsTeamProjectCollectionFactory.GetTeamProjectCollection(uri, credentials)
-                       : TfsTeamProjectCollectionFactory.GetTeamProjectCollection(uri);
+                                ? TfsTeamProjectCollectionFactory.GetTeamProjectCollection(uri, credentials)
+                                : TfsTeamProjectCollectionFactory.GetTeamProjectCollection(uri);
         }
 
         private void DefineUsersAndDates()
@@ -105,10 +119,11 @@ namespace TFSUtility.Commands
                     if (!users[userIndex].Work.ContainsKey(date.Date))
                         users[userIndex].Work.Add(date.Date, 0);
 
-                    if (!revision.Fields.Contains("Completed Work")) continue;
 
-                    var originalValue = GetValue(revision.Fields["Completed Work"].OriginalValue);
-                    var value = GetValue(revision.Fields["Completed Work"].Value);
+                    if (!revision.Fields.Contains(parameters.CompletedWork)) continue;
+
+                    var originalValue = GetValue(revision.Fields[parameters.CompletedWork].OriginalValue);
+                    var value = GetValue(revision.Fields[parameters.CompletedWork].Value);
 
                     users[userIndex].Work[date.Date] += value - originalValue;
 
@@ -134,6 +149,9 @@ namespace TFSUtility.Commands
 
             users.Sort((u1, u2) => String.CompareOrdinal(u1.Name, u2.Name));
             dates.Sort();
+
+            outputConsole.WriteLine();
+            outputConsole.WriteLine();
         }
 
         private void DefineWorkItemCollection()
@@ -163,17 +181,40 @@ namespace TFSUtility.Commands
 
         private void PrintHeaders()
         {
-            outputConsole.WriteLine();
-            outputConsole.WriteLine();
-            outputConsole.WriteLine("Result");
-            outputConsole.WriteLine("=========================================================");
+            var output = outputFile ?? outputConsole;
 
+            if (outputFile != null)
+            {
+                output.WriteLine("Result");
+                output.WriteLine("=========================================================");
+            }
 
-            outputConsole.Write("".PadRight(users[0].Name.Length) + " ");
+            output.Write("".PadRight(users[0].Name.Length) + " ");
             foreach (var date in dates)
             {
-                outputConsole.Write(date.ToString("dd/MM") + " ");
+                output.Write(date.ToString("dd/MM") + " ");
             }
+            output.WriteLine();
+        }
+
+        private void PrintHelp()
+        {
+            outputConsole.WriteLine("Map");
+            outputConsole.WriteLine("===");
+            outputConsole.WriteLine();
+            outputConsole.WriteLine("Synopsis");
+            outputConsole.WriteLine("--------");
+            outputConsole.WriteLine("   TFSUtiliy command:map ");
+            outputConsole.WriteLine("             collectionUrl:<collection url>");
+            outputConsole.WriteLine("             project:<project>");
+            outputConsole.WriteLine("             iterationPath:<full iteration path>");
+            outputConsole.WriteLine("             [user:<login with optional domin> password:<password>]");
+            outputConsole.WriteLine("             [completedWorkField:<name of field>");
+            outputConsole.WriteLine("             [resultToFile:<file name>");
+            outputConsole.WriteLine();
+            outputConsole.WriteLine("Description");
+            outputConsole.WriteLine("-----------");
+            outputConsole.WriteLine("   Map completed work of Users x Dates.");
             outputConsole.WriteLine();
         }
 
@@ -186,9 +227,11 @@ namespace TFSUtility.Commands
 
         private void PrintUsers()
         {
+            var output = outputFile ?? outputConsole;
+
             foreach (var user in users)
             {
-                outputConsole.Write(user.Name + " ");
+                output.Write(user.Name + " ");
 
                 foreach (var date in dates)
                 {
@@ -196,10 +239,10 @@ namespace TFSUtility.Commands
                     if (user.Work.ContainsKey(date))
                         work = user.Work[date.Date];
 
-                    outputConsole.Write(Convert.ToString(work).PadLeft(5) + " ");
+                    output.Write(Convert.ToString(work).PadLeft(5) + " ");
                 }
 
-                outputConsole.WriteLine();
+                output.WriteLine();
             }
         }
 
@@ -207,6 +250,25 @@ namespace TFSUtility.Commands
         {
             public String Name { get; set; }
             public Dictionary<DateTime, Decimal> Work { get; set; }
+        }
+
+        internal class Credentials : ICredentialsProvider
+        {
+            private readonly NetworkCredential credentials;
+
+            public Credentials(String user, String password, String domain = null)
+            {
+                credentials = String.IsNullOrEmpty(domain) ? new NetworkCredential(user, password) : new NetworkCredential(user, password, domain);
+            }
+
+            public ICredentials GetCredentials(Uri uri, ICredentials failedCredentials)
+            {
+                return credentials;
+            }
+
+            public void NotifyCredentialsAuthenticated(Uri uri)
+            {
+            }
         }
     }
 }
