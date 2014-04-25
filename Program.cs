@@ -18,7 +18,8 @@ namespace TFSUtility
                 Console.WriteLine();
                 Console.WriteLine();
                 Console.WriteLine("Availiable commands:");
-                Console.WriteLine("   map       Map completed work of Users x Dates");
+                Console.WriteLine("   map         Map completed work of Users x Dates");
+                Console.WriteLine("   workOfUser  Get all work of user");
                 Console.WriteLine();
             }
 
@@ -29,8 +30,12 @@ namespace TFSUtility
                 switch (parameters.Command)
                 {
                     case Parameters.MAPWORK_COMMAND:
-                        var command = CommandFactory.GetMapWork(parameters);
-                        command.Execute(Console.Out);
+                        CommandFactory.GetMapWork(parameters).Execute(Console.Out);
+
+                        break;
+
+                    case Parameters.WORKOFUSER_COMMAND:
+                        CommandFactory.GetWorkOfUser(parameters).Execute(Console.Out);
 
                         break;
                 }

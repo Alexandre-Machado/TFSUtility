@@ -6,12 +6,11 @@ using Microsoft.TeamFoundation.WorkItemTracking.Client;
 
 namespace TFSUtility.Commands
 {
-    public class MapWork : CommandBase, ICommand
+    public class WorkOfUser : CommandBase, ICommand
     {
-        private readonly List<User> users = new List<User>();
-        private readonly List<DateTime> dates = new List<DateTime>();
+        private readonly List<DateOfWok> dates = new List<DateOfWok>();
 
-        public MapWork(Parameters parameters)
+        public WorkOfUser(Parameters parameters)
         {
             this.parameters = parameters;
         }
@@ -27,7 +26,7 @@ namespace TFSUtility.Commands
                 return;
             }
 
-            if (String.IsNullOrEmpty(parameters.CollectionUrl) || String.IsNullOrEmpty(parameters.Project) || String.IsNullOrEmpty(parameters.IterationPath))
+            if (String.IsNullOrEmpty(parameters.CollectionUrl) || String.IsNullOrEmpty(parameters.Project) || String.IsNullOrEmpty(parameters.IterationPath) || String.IsNullOrEmpty(parameters.User))
             {
                 outputConsole.WriteLine("**** Missing parameters ****");
                 outputConsole.WriteLine();
@@ -46,10 +45,10 @@ namespace TFSUtility.Commands
 
             DefineCollection();
             DefineWorkItemCollection();
-            DefineUsersAndDates();
+            DefineWork();
 
-            PrintHeaders();
-            PrintUsers();
+            PrintHeader();
+            PrintWork();
 
             if (outputFile != null)
             {
@@ -60,12 +59,11 @@ namespace TFSUtility.Commands
             }
         }
 
-        private void DefineUsersAndDates()
+        private void DefineWork()
         {
-            outputConsole.Write("Getting users and dates ");
+            outputConsole.Write("Getting work of user ");
             outputConsole.Write("(" + wic.Count +  ") ");
 
-            var sizeUser = 0;
             var counter = 0;
             var puller = 0;
 
@@ -76,31 +74,29 @@ namespace TFSUtility.Commands
                     var user = Convert.ToString(revision.Fields["Changed By"].Value);
                     var date = Convert.ToDateTime(revision.Fields["Revised Date"].Value);
 
+                    if (user.ToLower() != parameters.User.ToLower()) continue;
                     if (date.Day == 1 && date.Month == 1 && date.Year == 9999) continue;
-
-                    if (user.Length > sizeUser)
-                        sizeUser = user.Length;
-
-                    var userIndex = users.FindIndex(u => u.Name == user);
-                    if (userIndex == -1)
-                    {
-                        users.Add(new User { Name = user, Work = new Dictionary<DateTime, Decimal>() });
-                        userIndex = users.Count - 1;
-                    }
-
-                    if (!users[userIndex].Work.ContainsKey(date.Date))
-                        users[userIndex].Work.Add(date.Date, 0);
-
-
                     if (!revision.Fields.Contains(parameters.CompletedWork)) continue;
 
                     var originalValue = GetValue(revision.Fields[parameters.CompletedWork].OriginalValue);
                     var value = GetValue(revision.Fields[parameters.CompletedWork].Value);
 
-                    users[userIndex].Work[date.Date] += value - originalValue;
+                    if (value - originalValue != 0)
+                    {
+                        var dateIndex = dates.FindIndex(d => d.Date.Date == date.Date);
+                        if (dateIndex == -1)
+                        {
+                            dates.Add(new DateOfWok {Date = date.Date, Work = new Dictionary<String, Decimal>()});
+                            dateIndex = dates.Count - 1;
+                        }
 
-                    if (!dates.Contains(date.Date))
-                        dates.Add(date.Date);
+                        if(!dates[dateIndex].Work.ContainsKey(wi.Id + " - " + wi.Title))
+                        {
+                            dates[dateIndex].Work.Add(wi.Id + " - " + wi.Title, 0);
+                        }
+
+                        dates[dateIndex].Work[wi.Id + " - " + wi.Title] += value - originalValue;
+                    }
                 }
 
                 counter++;
@@ -114,19 +110,13 @@ namespace TFSUtility.Commands
 
             outputConsole.WriteLine(Convert.ToString(wic.Count) + ". Done.");
 
-            foreach (var user in users)
-            {
-                user.Name = user.Name.PadRight(sizeUser);
-            }
-
-            users.Sort((u1, u2) => String.CompareOrdinal(u1.Name, u2.Name));
-            dates.Sort();
+            dates.Sort((d1, d2) => d1.Date.CompareTo(d2.Date));
 
             outputConsole.WriteLine();
             outputConsole.WriteLine();
         }
 
-        private void PrintHeaders()
+        private void PrintHeader()
         {
             var output = outputFile ?? outputConsole;
 
@@ -136,67 +126,60 @@ namespace TFSUtility.Commands
                 output.WriteLine("=========================================================");
             }
 
-            output.Write("".PadRight(users[0].Name.Length) + " ");
-            foreach (var date in dates)
-            {
-                output.Write(date.ToString("dd/MM") + " ");
-            }
             output.WriteLine();
         }
 
         private void PrintHelp()
         {
-            outputConsole.WriteLine("Map");
-            outputConsole.WriteLine("===");
+            outputConsole.WriteLine("Work of User");
+            outputConsole.WriteLine("============");
             outputConsole.WriteLine();
             outputConsole.WriteLine("Synopsis");
             outputConsole.WriteLine("--------");
-            outputConsole.WriteLine("   TFSUtiliy command:map ");
+            outputConsole.WriteLine("   TFSUtiliy command:workofuser ");
             outputConsole.WriteLine("             collectionUrl:<collection url>");
             outputConsole.WriteLine("             project:<project>");
             outputConsole.WriteLine("             iterationPath:<full iteration path>");
-            outputConsole.WriteLine("             [loginname:<login with optional domin> password:<password>]");
+            outputConsole.WriteLine("             user: <name of user>");
+            outputConsole.WriteLine("             [loginName:<login with optional domin> password:<password>]");
             outputConsole.WriteLine("             [completedWorkField:<name of field>");
             outputConsole.WriteLine("             [resultToFile:<file name>");
             outputConsole.WriteLine();
             outputConsole.WriteLine("Description");
             outputConsole.WriteLine("-----------");
-            outputConsole.WriteLine("   Map completed work of Users x Dates.");
+            outputConsole.WriteLine("   List the work completed by date of user.");
             outputConsole.WriteLine();
         }
 
         private void PrintStartCommand()
         {
-            outputConsole.WriteLine("TFSUtiliy: Map");
-            outputConsole.WriteLine("==============");
+            outputConsole.WriteLine("TFSUtiliy: Work of User");
+            outputConsole.WriteLine("=======================");
             outputConsole.WriteLine();
         }
 
-        private void PrintUsers()
+        private void PrintWork()
         {
             var output = outputFile ?? outputConsole;
 
-            foreach (var user in users)
+            foreach (var date in dates)
             {
-                output.Write(user.Name + " ");
+                output.WriteLine(date.Date.ToString("dd/MM/yyyy"));
+                output.WriteLine("----------");
 
-                foreach (var date in dates)
+                foreach (var work in date.Work)
                 {
-                    Decimal work = 0;
-                    if (user.Work.ContainsKey(date))
-                        work = user.Work[date.Date];
-
-                    output.Write(Convert.ToString(work).PadLeft(5) + " ");
+                    output.WriteLine("   " + work.Key + ": " + Convert.ToString(work.Value));
                 }
 
                 output.WriteLine();
             }
         }
 
-        internal class User
+        internal class DateOfWok
         {
-            public String Name { get; set; }
-            public Dictionary<DateTime, Decimal> Work { get; set; }
+            public DateTime Date { get; set; }
+            public Dictionary<String, Decimal> Work { get; set; }
         }
     }
 }

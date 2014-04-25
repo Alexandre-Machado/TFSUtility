@@ -8,5 +8,10 @@ namespace TFSUtility.Factories
         {
             return new MapWork(parameters);
         }
+
+        public static ICommand GetWorkOfUser(Parameters parameters)
+        {
+            return new WorkOfUser(parameters);
+        }
     }
 }

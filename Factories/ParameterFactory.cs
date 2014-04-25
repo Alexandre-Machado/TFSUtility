@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 
 namespace TFSUtility.Factories
 {
@@ -10,13 +11,36 @@ namespace TFSUtility.Factories
         public const String PROJECT_PARAMETER = "project:";
         public const String INTERATIONPATH_PARAMETER = "iterationpath:";
         public const String USER_PARAMETER = "user:";
+        public const String LOGINNAME_PARAMETER = "loginName:";
         public const String PASSWORD_PARAMETER = "password:";
         public const String COMPLETEDWORKFIELD_PARAMETER = "completedWordField:";
         public const String RESULTTOFILE_PARAMETER = "resultToFile:";
 
+        private static String GetParameter(String[] args, String parameterName)
+        {
+            var index = args.ToList().FindIndex(
+                a =>
+                a.Length > parameterName.Length &&
+                a.Substring(0, parameterName.Length).ToLower() == parameterName.ToLower());
+
+            return index > -1 ? args[index].Substring(parameterName.Length).ToLower() : null;
+        }
+
         public static Parameters GetParameters(String[] args)
         {
-            var parameters = new Parameters { CompletedWork = "Completed Work" };
+            var parameters = new Parameters
+                                 {
+                                     CompletedWork = "Completed Work",
+                                     Command = GetParameter(args, COMMAND_PARAMETER),
+                                     CollectionUrl = GetParameter(args, COLLECTIONURL_PARAMETER),
+                                     Project = GetParameter(args, PROJECT_PARAMETER),
+                                     IterationPath = GetParameter(args, INTERATIONPATH_PARAMETER),
+                                     ResultToFile = GetParameter(args, RESULTTOFILE_PARAMETER),
+                                     User = GetParameter(args, USER_PARAMETER),
+                                     Password = GetParameter(args, PASSWORD_PARAMETER)
+                                 };
+
+            parameters.CompletedWork = GetParameter(args, COMPLETEDWORKFIELD_PARAMETER);
 
             foreach(var arg in args)
             {
@@ -24,47 +48,20 @@ namespace TFSUtility.Factories
                 {
                     parameters.Help = true;
                 }
-                else if (arg.Length > RESULTTOFILE_PARAMETER.Length && arg.Substring(0, RESULTTOFILE_PARAMETER.Length).ToLower() == RESULTTOFILE_PARAMETER.ToLower())
+                
+                if (arg.Length > LOGINNAME_PARAMETER.Length && arg.Substring(0, LOGINNAME_PARAMETER.Length).ToLower() == LOGINNAME_PARAMETER.ToLower())
                 {
-                    parameters.ResultToFile = arg.Substring(RESULTTOFILE_PARAMETER.Length).ToLower();
-                }
-                else if (arg.Length > COMMAND_PARAMETER.Length && arg.Substring(0, COMMAND_PARAMETER.Length).ToLower() == COMMAND_PARAMETER.ToLower())
-                {
-                    parameters.Command = arg.Substring(COMMAND_PARAMETER.Length).ToLower();
-                }
-                else if (arg.Length > COMPLETEDWORKFIELD_PARAMETER.Length && arg.Substring(0, COMPLETEDWORKFIELD_PARAMETER.Length).ToLower() == COMPLETEDWORKFIELD_PARAMETER.ToLower())
-                {
-                    parameters.CompletedWork = arg.Substring(COMPLETEDWORKFIELD_PARAMETER.Length).ToLower();
-                }
-                else if (arg.Length > COLLECTIONURL_PARAMETER.Length && arg.Substring(0, COLLECTIONURL_PARAMETER.Length).ToLower() == COLLECTIONURL_PARAMETER.ToLower())
-                {
-                    parameters.CollectionUrl = arg.Substring(COLLECTIONURL_PARAMETER.Length).ToLower();
-                }
-                else if (arg.Length > PROJECT_PARAMETER.Length && arg.Substring(0, PROJECT_PARAMETER.Length).ToLower() == PROJECT_PARAMETER.ToLower())
-                {
-                    parameters.Project = arg.Substring(PROJECT_PARAMETER.Length).ToLower();
-                }
-                else if (arg.Length > INTERATIONPATH_PARAMETER.Length && arg.Substring(0, INTERATIONPATH_PARAMETER.Length).ToLower() == INTERATIONPATH_PARAMETER.ToLower())
-                {
-                    parameters.IterationPath = arg.Substring(INTERATIONPATH_PARAMETER.Length).ToLower();
-                }
-                else if (arg.Length > USER_PARAMETER.Length && arg.Substring(0, USER_PARAMETER.Length).ToLower() == USER_PARAMETER.ToLower())
-                {
-                    var user = arg.Substring(USER_PARAMETER.Length).Split('\\');
+                    var loginName = arg.Substring(LOGINNAME_PARAMETER.Length).Split('\\');
 
-                    if (user.Length > 1)
+                    if (loginName.Length > 1)
                     {
-                        parameters.Domain = user[0];
-                        parameters.User = user[1];
+                        parameters.Domain = loginName[0];
+                        parameters.LoginName = loginName[1];
                     }
                     else
                     {
-                        parameters.User = user[0];
+                        parameters.User = loginName[0];
                     }
-                }
-                else if (arg.Length > PASSWORD_PARAMETER.Length && arg.Substring(0, PASSWORD_PARAMETER.Length).ToLower() == PASSWORD_PARAMETER.ToLower())
-                {
-                    parameters.Password = arg.Substring(PASSWORD_PARAMETER.Length).ToLower();
                 }
             }
 

@@ -48,6 +48,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Commands\CommandBase.cs" />
+    <Compile Include="Commands\WorkOfUse.cs" />
     <Compile Include="Commands\MapWork.cs" />
     <Compile Include="Factories\CommandFactory.cs" />
     <Compile Include="Commands\ICommand.cs" />
