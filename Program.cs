@@ -40,13 +40,7 @@ namespace TFSUtility
                         break;
                 }
             }
-            catch(TeamFoundationServiceUnavailableException e)
-            {
-                Console.WriteLine();
-                Console.WriteLine();
-                Console.WriteLine(e.Message);
-            }
-            catch (ValidationException e)
+            catch(Exception e)
             {
                 Console.WriteLine();
                 Console.WriteLine();

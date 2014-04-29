@@ -13,7 +13,7 @@ namespace TFSUtility.Factories
         public const String USER_PARAMETER = "user:";
         public const String LOGINNAME_PARAMETER = "loginName:";
         public const String PASSWORD_PARAMETER = "password:";
-        public const String COMPLETEDWORKFIELD_PARAMETER = "completedWordField:";
+        public const String COMPLETEDWORKFIELD_PARAMETER = "completedWorkField:";
         public const String RESULTTOFILE_PARAMETER = "resultToFile:";
 
         private static String GetParameter(String[] args, String parameterName)
